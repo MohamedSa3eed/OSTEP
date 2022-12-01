@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -69,45 +70,43 @@ void execCommand()
 		{
 			exit(SUCCESSFUL_END);
 		}
-		if(!strcmp(arrayOfTokens[i],"cd"))
+		else if(!strcmp(arrayOfTokens[i],"cd"))
 		{
 			if(chdir(arrayOfTokens[++i]))
 			{
 				error();
 			}
 		}
-		if(!strcmp(arrayOfTokens[i],"path"))
+		else if(!strcmp(arrayOfTokens[i],"path"))
 		{
 			nOfPathes=0;
 			for(int j=1 ;j<indx-1;j++)
 			{
 				char *temp = realpath(arrayOfTokens[j],NULL);
-				paths[j-1] = temp;
-				/*if(*(arrayOfTokens[j]) == '/')*/
-				/*{*/
-					/*paths[j-1] = arrayOfTokens[j];*/
-					/*printf("%d\n",j);*/
-				/*}*/
-				/*else*/
-				/*{*/
-					/*char* temp=(char*)malloc(sizeof(char)*500) ;*/
-					/*getcwd(temp,500);*/
-					/*strcat(temp,"/");*/
-					/*strcat(temp,arrayOfTokens[j]);*/
-					/*strcat(temp,"/");*/
-					/*[>printf("%s\n",temp);<]*/
-					/*printf("%d\n",j);*/
-					/*[>paths[j-1]="/bin";<]*/
-					/*paths[j-1] = temp ;*/
-					/*[>strcpy(paths[j-1] , temp) ;<]*/
-				/*}*/
-				nOfPathes++;
+				if (temp != NULL)
+					paths[j-1] = temp;
+				else 
+					error();
+			nOfPathes++;
 			}
-			for(int j =0 ;j <nOfPathes ;j++)
-			{
-				/*printf("here\n");*/
-				printf("%s\n",paths[j]);
+		}
+		else 
+		{
+			int pid = fork();
+			if(pid==-1)
+			{       //error
+				error();
+				exit(FAILURE_END);
 			}
+			if(pid==0)
+			{       //child 
+
+			}
+			else 
+			{       //parent
+				wait(NULL);
+			}
+
 		}
 	}
 }
