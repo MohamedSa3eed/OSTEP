@@ -16,6 +16,7 @@ int indx =0 ;
 
 void getTokens(FILE *);
 void execCommand();
+/*void itHasredirection(char *str);*/
 void error();
 
 int main (int argc, char *argv[])
@@ -28,7 +29,15 @@ int main (int argc, char *argv[])
 	else if (argc == 2) //batch mode
 	{
 		FILE *input = fopen(argv[1],"r");
-		getTokens(input);
+		if(input != NULL)
+		{
+			getTokens(input);
+		}
+		else
+		{
+			error();
+			exit(FAILURE_END);
+		}
 	}
 	else
 	{
@@ -79,7 +88,15 @@ void execCommand()
 		if (!strcmp(arrayOfTokens[i], "exit"))
 		{
 			/*printf("here\n");*/
-			exit(SUCCESSFUL_END);
+			if(arrayOfTokens[i+1] == NULL)
+			{	
+				exit(SUCCESSFUL_END);
+			}
+			else
+			{
+				i++;
+				error();
+			}
 		}
 		else if(!strcmp(arrayOfTokens[i],"cd"))
 		{
@@ -87,6 +104,12 @@ void execCommand()
 			{
 				error();
 			}
+			while (arrayOfTokens[i] != NULL)
+			{
+				i++;
+			}
+			i++;
+
 		}
 		else if(!strcmp(arrayOfTokens[i],"path"))
 		{
