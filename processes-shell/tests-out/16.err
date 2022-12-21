@@ -1,1 +1,1 @@
-An error has occurred
+../tester/run-tests.sh: line 27: 11242 Segmentation fault      (core dumped) ./wish tests/16.in

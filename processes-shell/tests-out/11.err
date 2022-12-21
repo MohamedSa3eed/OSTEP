@@ -1,2 +1,3 @@
-ls: cannot access 'tests/p2a-test>/tmp/output11': No such file or directory
+ls: cannot access '>': No such file or directory
+ls: cannot access '/tmp/output11': No such file or directory
 cat: /tmp/output11: No such file or directory

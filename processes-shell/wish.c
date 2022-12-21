@@ -59,16 +59,46 @@ void getTokens(FILE* input)
 		size_t len = 0 ;
 		if(getline(&original,&len,input)==EOF)
 			exit(SUCCESSFUL_END);
+		unsigned long long original_size = strlen(original);
+		char *modified = (char *)malloc(sizeof(char)*original_size*2);
+		int shift  =0;
+		for(int i = 0 ; i<original_size ; i++ )
+		{
+			if(original[i] == '>'|| original[i] == '&' || original[i] == '|')
+			{
+				modified[i+shift]=' ';
+				shift++;
+				modified[i+shift]=original[i];
+				i++;
+				modified[i+shift]=' ';
+				shift++;
+			}
+			modified[i+shift]=original[i];
+		}
 		char *token;
-		while( (token = strsep(&original," \n")) != NULL ) //remove white spaces and newlines
+		while( (token = strsep(&modified," \n")) != NULL ) //remove white spaces and newlines
 		{	
+			if(!strcmp(token,"&"))
+			{
+				arrayOfTokens[indx] = NULL ;
+				indx++;
+			}
 			if(memcmp(token,"\0",1)) //not equal 
 			{
 				arrayOfTokens[indx] = token;
 				indx++;
+				/*if(token[strlen(token)-1]=='>')*/
+				/*{*/
+					/*token[strlen(token)-1]='\0';*/
+					/*char *temp = (char *)malloc(sizeof(char)*3);*/
+					/*strcpy(temp, ">");*/
+					/*arrayOfTokens[indx++] = temp ;*/
+					/*continue;*/
+				/*}*/
 			}
 		}
 		/*arrayOfTokens[indx++]="\0";*/
+				/*printf("hi");*/
 		/*for(int i =0 ;i <indx ;i++)*/
 		/*{*/
 			/*printf("%s\n",arrayOfTokens[i]);*/
@@ -78,6 +108,7 @@ void getTokens(FILE* input)
 			arrayOfTokens[i]=NULL;
 		}
 		execCommand();
+		free(modified);
 	}
 }
 
@@ -156,6 +187,8 @@ void execCommand()
 					i++;
 				}
 				i++;
+				if (i < indx)
+					continue;
 				wait(NULL);
 			}
 		}
