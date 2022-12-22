@@ -62,8 +62,10 @@ void getTokens(FILE* input)
 		if(getline(&original,&len,input)==EOF)
 			exit(SUCCESSFUL_END);
 		unsigned long long original_size = strlen(original);
-		char *modified = (char *)malloc(sizeof(char)*original_size*2);
+		char *modified = (char *)malloc(sizeof(char)*original_size*6);
 		int shift  =0;
+		if(!(strcmp(original,"&\n")))
+			continue;
 		for(int i = 0 ; i<original_size ; i++ )
 		{
 			if(original[i] == '>'|| original[i] == '&' || original[i] == '|')
@@ -168,6 +170,9 @@ void execCommand()
 			}
 			if(pid==0)
 			{       //child 
+				if(commandHasRedirection(arrayOfTokens, i) != -1) 
+				{
+
 				for(int j =0 ;j<nOfPathes;j++)
 				{
 					char *exe = malloc(sizeof(char)*MAX_PATH);
@@ -181,6 +186,7 @@ void execCommand()
 				}
 				error();
 				exit(FAILURE_END);
+				}
 			}
 			else 
 			{       //parent
@@ -201,11 +207,21 @@ int commandHasRedirection(char *arr[] , int start)
 {
 	for(int i = start ; arr[i] != NULL ; i++)
 	{
-		if(!strcmp(arr[i],">"))
+		if(!strcmp(arr[i],">") && i != start)
 		{
-			int fd = open(arr[i+1],O_WRONLY | O_CREAT,0777); //open or creat with high permissions 
-			dup2(fd,STDOUT_FILENO);
-			close(fd);
+			arr[i]=NULL;
+			if(arr[i+1] == NULL || arr[i+2] != NULL)
+			{
+				error();
+				return -1 ;
+			}
+			else 
+			{
+				int fd = open(arr[i+1],O_WRONLY | O_CREAT,0777); //open or creat with high permissions 
+				dup2(fd,STDOUT_FILENO);
+				arr[i+1]=NULL;
+				close(fd);
+			}
 			return i;
 		}
 	}
