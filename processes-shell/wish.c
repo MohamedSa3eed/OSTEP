@@ -4,6 +4,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <fcntl.h>
 
 #define SUCCESSFUL_END 0
 #define FAILURE_END    1
@@ -17,6 +18,7 @@ int indx =0 ;
 void getTokens(FILE *);
 void execCommand();
 /*void itHasredirection(char *str);*/
+int commandHasRedirection(char *arr[] , int start);
 void error();
 
 int main (int argc, char *argv[])
@@ -193,6 +195,21 @@ void execCommand()
 			}
 		}
 	}
+}
+
+int commandHasRedirection(char *arr[] , int start)
+{
+	for(int i = start ; arr[i] != NULL ; i++)
+	{
+		if(!strcmp(arr[i],">"))
+		{
+			int fd = open(arr[i+1],O_WRONLY | O_CREAT,0777); //open or creat with high permissions 
+			dup2(fd,STDOUT_FILENO);
+			close(fd);
+			return i;
+		}
+	}
+	return 0;
 }
 
 void error()
