@@ -14,6 +14,8 @@ char *paths[100]={"/bin/","/usr/bin/"};
 int nOfPathes =2;
 char * arrayOfTokens[100];
 int indx =0 ;
+int childsPid[100];
+int nOfChilds = 0 ;
 
 void getTokens(FILE *);
 void execCommand();
@@ -113,6 +115,11 @@ void getTokens(FILE* input)
 		}
 		execCommand();
 		free(modified);
+		for (int x = 0 ; x<nOfChilds ; x++ )
+		{
+			int stat;
+			waitpid(childsPid[x],&stat,0);
+		}
 	}
 }
 
@@ -163,6 +170,7 @@ void execCommand()
 		else 
 		{
 			int pid = fork();
+			childsPid[nOfChilds++]=pid ;
 			if(pid==-1)
 			{       //error
 				error();
@@ -197,7 +205,7 @@ void execCommand()
 				i++;
 				if (i < indx)
 					continue;
-				wait(NULL);
+				/*wait(NULL);*/
 			}
 		}
 	}
