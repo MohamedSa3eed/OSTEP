@@ -2120,10 +2120,12 @@ SYSCALL(uptime)
      ebb:	b8 0e 00 00 00       	mov    $0xe,%eax
      ec0:	cd 40                	int    $0x40
      ec2:	c3                   	ret    
-     ec3:	66 90                	xchg   %ax,%ax
-     ec5:	66 90                	xchg   %ax,%ax
-     ec7:	66 90                	xchg   %ax,%ax
-     ec9:	66 90                	xchg   %ax,%ax
+
+00000ec3 <getreadcount>:
+SYSCALL(getreadcount)
+     ec3:	b8 16 00 00 00       	mov    $0x16,%eax
+     ec8:	cd 40                	int    $0x40
+     eca:	c3                   	ret    
      ecb:	66 90                	xchg   %ax,%ax
      ecd:	66 90                	xchg   %ax,%ax
      ecf:	90                   	nop

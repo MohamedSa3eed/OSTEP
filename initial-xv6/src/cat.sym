@@ -33,6 +33,7 @@
 00000140 strcmp
 000003db dup
 00000b80 buf
+00000403 getreadcount
 000002a0 stat
 00000b64 _edata
 00000d8c _end

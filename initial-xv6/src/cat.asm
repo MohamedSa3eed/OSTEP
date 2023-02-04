@@ -668,10 +668,12 @@ SYSCALL(uptime)
  3fb:	b8 0e 00 00 00       	mov    $0xe,%eax
  400:	cd 40                	int    $0x40
  402:	c3                   	ret    
- 403:	66 90                	xchg   %ax,%ax
- 405:	66 90                	xchg   %ax,%ax
- 407:	66 90                	xchg   %ax,%ax
- 409:	66 90                	xchg   %ax,%ax
+
+00000403 <getreadcount>:
+SYSCALL(getreadcount)
+ 403:	b8 16 00 00 00       	mov    $0x16,%eax
+ 408:	cd 40                	int    $0x40
+ 40a:	c3                   	ret    
  40b:	66 90                	xchg   %ax,%ax
  40d:	66 90                	xchg   %ax,%ax
  40f:	90                   	nop

@@ -6030,10 +6030,12 @@ SYSCALL(uptime)
     396b:	b8 0e 00 00 00       	mov    $0xe,%eax
     3970:	cd 40                	int    $0x40
     3972:	c3                   	ret    
-    3973:	66 90                	xchg   %ax,%ax
-    3975:	66 90                	xchg   %ax,%ax
-    3977:	66 90                	xchg   %ax,%ax
-    3979:	66 90                	xchg   %ax,%ax
+
+00003973 <getreadcount>:
+SYSCALL(getreadcount)
+    3973:	b8 16 00 00 00       	mov    $0x16,%eax
+    3978:	cd 40                	int    $0x40
+    397a:	c3                   	ret    
     397b:	66 90                	xchg   %ax,%ax
     397d:	66 90                	xchg   %ax,%ax
     397f:	90                   	nop

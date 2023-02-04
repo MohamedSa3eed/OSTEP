@@ -65,7 +65,7 @@ and install the tools.
 
 ### Initial Projects
 
-- [ ] [Intro To xv6](initial-xv6)
+- [x] [Intro To xv6](initial-xv6)
 
 ### Processes and Scheduling
 

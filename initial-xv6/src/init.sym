@@ -32,6 +32,7 @@
 00000000 main
 00000120 strcmp
 000003bb dup
+000003e3 getreadcount
 00000280 stat
 00000b2c _edata
 00000b38 _end

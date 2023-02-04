@@ -51,6 +51,7 @@
 00000e9b dup
 000003c0 pipecmd
 00000370 redircmd
+00000ec3 getreadcount
 00000d60 stat
 000019d2 _edata
 00001a50 _end

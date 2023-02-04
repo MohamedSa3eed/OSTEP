@@ -68,6 +68,7 @@
 00008580 buf
 000008f0 dirtest
 00000120 iputtest
+00003973 getreadcount
 00003810 stat
 000024e0 bigfile
 00005e60 _edata

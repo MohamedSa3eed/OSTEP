@@ -35,6 +35,7 @@
 000003a0 strcmp
 0000063b dup
 00000e80 buf
+00000663 getreadcount
 00000500 stat
 00000e80 _edata
 0000128c _end
