@@ -28,7 +28,7 @@ $ make
 
 If you are using Windows 10 or 11 , you can use the Windows Subsystem for Linux (WSL) to be able to use unix utilities [Install WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10).
 
-##Run
+## Run
 
 ```
 $ make run
