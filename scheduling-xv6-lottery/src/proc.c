@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "rand.h"
 
 struct {
   struct spinlock lock;
@@ -88,6 +89,9 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+
+  //set the default value of tickets 
+  p->tickets = 1 ;
 
   release(&ptable.lock);
 
@@ -329,11 +333,23 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this processor.
     sti();
-
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    // Count the total number of tickets of runnable processes
+    uint totalTickets = 0 ;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+      if(p->state == RUNNABLE)
+        totalTickets += p->tickets ;
+
+    // choose random number to be the winner
+    uint winner = getRandomNumber(0, totalTickets);
+
+    uint counter = 0 ;
+    // Loop over process table looking for process to run.
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
+        continue;
+      counter += p->tickets ;
+      if(counter <= winner)
         continue;
 
       // Switch to chosen process.  It is the process's job
@@ -349,6 +365,7 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      break;
     }
     release(&ptable.lock);
 
