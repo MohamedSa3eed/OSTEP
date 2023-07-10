@@ -69,7 +69,7 @@ and install the tools.
 
 ### Processes and Scheduling
 
-- [ ] [Scheduling (Lottery)](scheduling-xv6-lottery)
+- [x] [Scheduling (Lottery)](scheduling-xv6-lottery)
 
 ### Virtual Memory
 
