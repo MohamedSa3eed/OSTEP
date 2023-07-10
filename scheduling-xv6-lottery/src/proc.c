@@ -358,8 +358,11 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      const int start_ticks = ticks ;
+      p->ticks = 0 ;
 
       swtch(&(c->scheduler), p->context);
+      p->ticks+= ticks - start_ticks ;
       switchkvm();
 
       // Process is done running for now.
@@ -548,4 +551,25 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+void get_p_info(struct pstat * ps)
+{
+  acquire(&ptable.lock);
+  struct proc *p ;
+  for (p = ptable.proc ; p < &ptable.proc[NPROC] ; p++)
+  {
+    if(p->state != UNUSED)
+    {
+      uint indx = p - ptable.proc ;
+      if(p->state == RUNNING)
+        ps->inuse[indx] = 1; 
+      else
+        ps->inuse[indx] = 0;
+      ps->pid[indx] = p->pid;
+      ps->tickets[indx] = p->tickets;
+      ps->ticks[indx] = p->ticks ;
+    }
+  }
+  release(&ptable.lock);
 }

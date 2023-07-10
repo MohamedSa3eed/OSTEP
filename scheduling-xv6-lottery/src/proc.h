@@ -1,4 +1,5 @@
 // Per-CPU state
+#include "pstat.h"
 struct cpu {
   uchar apicid;                // Local APIC ID
   struct context *scheduler;   // swtch() here to enter scheduler
@@ -38,6 +39,7 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct proc {
   uint sz;                     // Size of process memory (bytes)
   uint tickets;                // Number of tickets of process
+  uint ticks;                  // Number of ticks the process has accumulated
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
@@ -57,3 +59,4 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+void get_p_info(struct pstat *);
