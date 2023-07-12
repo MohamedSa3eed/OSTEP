@@ -92,6 +92,7 @@ found:
 
   //set the default value of tickets 
   p->tickets = 1 ;
+  p->ticks = 0 ;
 
   release(&ptable.lock);
 
@@ -359,7 +360,6 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
       const int start_ticks = ticks ;
-      p->ticks = 0 ;
 
       swtch(&(c->scheduler), p->context);
       p->ticks+= ticks - start_ticks ;
@@ -559,16 +559,17 @@ void get_p_info(struct pstat * ps)
   struct proc *p ;
   for (p = ptable.proc ; p < &ptable.proc[NPROC] ; p++)
   {
+    uint indx = p - ptable.proc ;
     if(p->state != UNUSED)
     {
-      uint indx = p - ptable.proc ;
-      if(p->state == RUNNING)
-        ps->inuse[indx] = 1; 
-      else
-        ps->inuse[indx] = 0;
+      ps->inuse[indx] = 1; 
       ps->pid[indx] = p->pid;
       ps->tickets[indx] = p->tickets;
       ps->ticks[indx] = p->ticks ;
+    }
+    else
+    {
+      ps->inuse[indx] = 0;
     }
   }
   release(&ptable.lock);
