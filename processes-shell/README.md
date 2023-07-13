@@ -37,6 +37,6 @@ $ make run
 ## Testing
 
 ```
-$ ./test-wish.sh -c
+$ make test
 ```
 That will run all the test cases 
