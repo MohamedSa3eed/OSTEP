@@ -28,6 +28,7 @@ This solution includes the following features:
 - Two new system calls:
   - `settickets(int number)`: sets the number of tickets of the calling process.
   - `getpinfo(struct pstat *p)`: returns information about all running processes, including how many times each process has been chosen to run and the process ID of each.
+- Inheritance of tickets from parent to child processes.
 - A simple linear congruential generator for generating random numbers in the kernel.
 - A Python script that generates a graph of the number of time slices a set of three processes (with a 3:2:1 ratio of tickets) receives over time, based on the output of a modified version of the `ps` command.
 

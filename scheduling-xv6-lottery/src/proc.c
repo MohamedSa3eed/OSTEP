@@ -89,8 +89,6 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
-  //set the default value of tickets 
   p->tickets = 1 ;
   p->ticks = 0 ;
 
@@ -203,6 +201,12 @@ fork(void)
   }
   np->sz = curproc->sz;
   np->parent = curproc;
+  if (np->pid != 1) {
+    np->tickets = curproc->tickets ;
+  }
+  else {
+    np->tickets = 1 ;  
+  }
   *np->tf = *curproc->tf;
 
   // Clear %eax so that fork returns 0 in the child.
