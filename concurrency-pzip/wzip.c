@@ -43,11 +43,11 @@ void map_files(int num_files , char *filenames[] , int *new_n , char **file)
   for (int i = 1; i < num_files; i++) {
       fds[i] = open(filenames[i], O_RDONLY);
       if (fds[i] == -1) {
-          print_err("wzip:1 cannot open file\n") ;
+          print_err("wzip: cannot open file\n") ;
           exit(EXIT_FAILURE);
       }
       if (fstat(fds[i], &sb[i]) == -1) {
-          print_err("wzip:2 cannot open file\n") ;
+          print_err("wzip: cannot get file status\n") ;
           exit(EXIT_FAILURE);
       }
       file_sizes[i] = sb[i].st_size;
@@ -58,7 +58,7 @@ void map_files(int num_files , char *filenames[] , int *new_n , char **file)
   for (int i = 1; i < num_files; i++) {
       file_data[i] = mmap(NULL, file_sizes[i], PROT_READ, MAP_SHARED, fds[i], 0);
       if (file_data[i] == MAP_FAILED) {
-          print_err("wzip:3 cannot open file\n") ;
+          print_err("wzip: cannot map file\n") ;
           exit(EXIT_FAILURE);
       }
       offset += file_sizes[i];
@@ -73,7 +73,7 @@ void map_files(int num_files , char *filenames[] , int *new_n , char **file)
   // Unmap the memory and close the files
   for (int i = 1; i < num_files; i++) {
       if (munmap(file_data[i], file_sizes[i]) == -1) {
-          perror("munmap");
+          print_err("wzip: cannot unmap file\n");
           exit(EXIT_FAILURE);
       }
       close(fds[i]);
