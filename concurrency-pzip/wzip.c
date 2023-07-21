@@ -1,6 +1,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include <stddef.h>
 #include <unistd.h>
 #include "sys/mman.h"
 #include <fcntl.h>
@@ -10,16 +11,35 @@
 
 #define MAX_FILES 100 // max number of files to compress
 #define MAX_CHUNKS 100 // max number of chunks to compress
+#define MIN_CHUNCK_SIZE 1024 // min size for a chunck only if the file has a bigger size 
 
 typedef struct {
   int id;
   int size;
   int start;
-  int end; 
+  int encoded_fd ;
+  FILE *encoded_fp ;
+  char *encoded_chunk ;
 } chunk;
 
-char *file = NULL ;
+struct {
+  int size ; 
+  int file_cursor;
+  int chunck_id_setter;
+  char *file_in_memory ; 
+}file;
 
+int print_order = 0 ;
+
+pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER ;
+pthread_mutex_t chunks_lock = PTHREAD_MUTEX_INITIALIZER ;
+pthread_mutex_t encoded_chunks_lock = PTHREAD_MUTEX_INITIALIZER ;
+pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER ;
+pthread_cond_t file_cv = PTHREAD_COND_INITIALIZER ;
+pthread_cond_t fill_chunks_cv = PTHREAD_COND_INITIALIZER ;
+pthread_cond_t empty_chunks_cv = PTHREAD_COND_INITIALIZER ;
+pthread_cond_t encoded_chunks_cv = PTHREAD_COND_INITIALIZER ;
+pthread_cond_t print_cv = PTHREAD_COND_INITIALIZER ;
 chunk *chunks[MAX_CHUNKS] ;
 int fill = 0 ;
 int use = 0 ;
@@ -29,6 +49,11 @@ void print_err(char *err);
 void map_files(int num_files , char *filenames[] , int *new_n , char **file);
 void enqueue(chunk *c);
 chunk *dequeue(void);
+void *producer(void *arg);
+void *consumer(void *arg);
+void encode_chunk(chunk *c);
+void open_file_for_encoded_chunk (chunk *c);
+void print_encoded_chunk(chunk *c);
 
 int main(int argc, char *argv[])
 {
@@ -36,11 +61,11 @@ int main(int argc, char *argv[])
     print_err("wzip: file1 [file2 ...]\n");
     exit(EXIT_FAILURE);
   }
-  int file_size = 0 ;
-  map_files(argc , argv , &file_size , &file) ;
+  file.size = 0 ;
+  map_files(argc , argv , &file.size , &file.file_in_memory) ;
   int threads = get_nprocs();
 
-  free(file);
+  free(file.file_in_memory);
   return EXIT_SUCCESS;
 }
 
@@ -111,27 +136,106 @@ chunk *dequeue(void)
   count-- ;
   return c;
 }
-void *producer (char *file)
+void *producer (void *arg)
 {
+  chunk *c = (chunk *)malloc(sizeof(chunk));
+  while (file.file_cursor < file.size) {
+    pthread_mutex_lock(&file_lock);
+    c->id = file.chunck_id_setter ;
+    if (file.size <= MIN_CHUNCK_SIZE)
+    {
+      c->start = 0 ;
+      c->size = file.size ;
+    }
+    else
+    {
+      c->start = file.file_cursor;
+      file.file_cursor += MIN_CHUNCK_SIZE ;
+      while(file.file_in_memory[file.file_cursor] == file.file_in_memory[file.file_cursor + 1]) 
+      {
+        file.file_cursor ++ ;
+      }
+      c->size = file.file_cursor - c->start ;
+    }
+    pthread_mutex_unlock(&file_lock);
+    pthread_mutex_lock(&chunks_lock);
+    while (count == MAX_CHUNKS) {
+      pthread_cond_wait(&empty_chunks_cv, &chunks_lock);
+    }
+    enqueue(c);
+    pthread_cond_signal(&fill_chunks_cv);
+    pthread_mutex_unlock(&chunks_lock);
+  }
   return NULL;
 }
 void *consumer(void *arg)
 {
+  while (1) {
+    pthread_mutex_lock(&chunks_lock);
+    while (count == 0) {
+      pthread_cond_wait(&fill_chunks_cv, &chunks_lock); 
+    }
+    chunk *c = dequeue(); 
+    pthread_cond_signal(&empty_chunks_cv);
+    pthread_mutex_unlock(&chunks_lock);
+    encode_chunk(c);
+  }
   return NULL;
 }
 void encode_chunk (chunk *c)
 {
+  open_file_for_encoded_chunk (c);
   int counter = 1 ;
   int cursor  = 0 ;
   while (cursor < c->size) {
     int offset = (c->start)+cursor ;
-    if (file[offset] == file[offset+1]) {
+    if (file.file_in_memory[offset] == file.file_in_memory[offset+1]) {
       counter++;
     }
     else {
-      // store file[offset] & counter
+      // Write data to the memory buffer 
+      fwrite(&counter ,sizeof(int),1,c->encoded_fp);
+      fwrite(&file.file_in_memory[offset],sizeof(char),1,c->encoded_fp);
       counter = 1 ;
     }
     cursor++ ;
   }
+  //Print chunck in its order 
+  print_encoded_chunk(c);
+  // Close the file descriptor
+  close(c->encoded_fd);
+  // Free the memory
+  free(c->encoded_chunk);
+  free(c->encoded_fp) ;
+  free(c);
+}
+void open_file_for_encoded_chunk (chunk *c)
+{ 
+  size_t s = (size_t)(sizeof(int)+sizeof(char)*(c->size));
+  // Allocate chunk_size bytes of memory
+  c->encoded_chunk = malloc(100);
+  if (c->encoded_chunk == NULL) {
+      exit(EXIT_FAILURE);
+  }
+  // Open a file for the memory buffer
+  FILE *fp = fmemopen(&c->encoded_chunk , s , "w+") ;
+  if (fp == NULL) {
+      free(c->encoded_chunk);
+      exit(EXIT_FAILURE);
+  }
+  c->encoded_fp = fp ;
+  int fd = fileno(fp); 
+  c->encoded_fd = fd ;
+}
+void print_encoded_chunk(chunk *c)
+{
+  pthread_mutex_lock(&print_lock);
+  while(print_order != c->id)
+  {
+    pthread_cond_broadcast(&print_cv);
+    pthread_cond_wait(&print_cv , &print_lock);
+  }
+  // Redirect the contents of the buffer to stdout
+  write(STDOUT_FILENO, c->encoded_chunk, strlen(c->encoded_chunk));
+  pthread_mutex_unlock(&print_lock);
 }
