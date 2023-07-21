@@ -17,6 +17,7 @@ typedef struct {
   int id;
   int size;
   int start;
+  int last_chunk ;
   int encoded_fd ;
   FILE *encoded_fp ;
   char *encoded_chunk ;
@@ -30,6 +31,7 @@ struct {
 }file;
 
 int print_order = 0 ;
+int consumed_all = 0 ;
 
 pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER ;
 pthread_mutex_t chunks_lock = PTHREAD_MUTEX_INITIALIZER ;
@@ -174,12 +176,21 @@ void *consumer(void *arg)
     pthread_mutex_lock(&chunks_lock);
     while (count == 0) {
       pthread_cond_wait(&fill_chunks_cv, &chunks_lock); 
+      if(consumed_all) //check if all chunks are consumed 
+        break;
     }
+    if(consumed_all)//check if all chunks are consumed 
+      break;
     chunk *c = dequeue(); 
+    if(c->last_chunk) // check if the chunk is the last one 
+    {
+      consumed_all = 1 ;
+    }
     pthread_cond_signal(&empty_chunks_cv);
     pthread_mutex_unlock(&chunks_lock);
     encode_chunk(c);
   }
+  pthread_cond_broadcast(&fill_chunks_cv); //wake all consumer threads to terminate
   return NULL;
 }
 void encode_chunk (chunk *c)
@@ -213,7 +224,7 @@ void open_file_for_encoded_chunk (chunk *c)
 { 
   size_t s = (size_t)(sizeof(int)+sizeof(char)*(c->size));
   // Allocate chunk_size bytes of memory
-  c->encoded_chunk = malloc(100);
+  c->encoded_chunk = malloc(s);
   if (c->encoded_chunk == NULL) {
       exit(EXIT_FAILURE);
   }
@@ -237,5 +248,6 @@ void print_encoded_chunk(chunk *c)
   }
   // Redirect the contents of the buffer to stdout
   write(STDOUT_FILENO, c->encoded_chunk, strlen(c->encoded_chunk));
+  print_order++;
   pthread_mutex_unlock(&print_lock);
 }
