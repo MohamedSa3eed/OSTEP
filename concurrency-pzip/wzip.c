@@ -15,55 +15,59 @@
 #define MIN_CHUNCK_SIZE 1024 // min size for a chunck only if the file has a bigger size 
 
 typedef struct {
-  int id;
-  int size;
-  int start;
-  int last_chunk ;
-  int encoded_fd ;
-  FILE *encoded_fp ;
-  char *encoded_chunk ;
+  int id;                // store the chunk id 
+  int size;              // store the chunk size 
+  int start;             // store the file index of the first char in chunk 
+  int last_chunk ;       // 1 indicates that chunck is the last one 
+  FILE *encoded_fp ;     // file pointer to hold encoded chunk 
+  char *encoded_chunk ;  // the encoded chunk in memory 
 } chunk;
 
 struct {
-  int size ; 
-  int file_cursor;
-  int chunck_id_setter;
-  char *file_in_memory ; 
+  int size ;             // holds the file size 
+  int file_cursor;       // holds the current index of file 
+  int chunck_id_setter;  // sets the chunks id 
+  char *file_in_memory ; // the file in memory 
 }file;
 
-int print_order = 0 ;
-int consumed_all = 0 ;
+int print_order = 0 ;    // holds the id of next chunk to print 
+int consumed_all = 0 ;   // 1 indicates that all chunks has been consumed 
 
-pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER ;
-pthread_mutex_t chunks_lock = PTHREAD_MUTEX_INITIALIZER ;
-pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER ;
-pthread_cond_t fill_chunks_cv = PTHREAD_COND_INITIALIZER ;
-pthread_cond_t empty_chunks_cv = PTHREAD_COND_INITIALIZER ;
-pthread_cond_t print_cv = PTHREAD_COND_INITIALIZER ;
+pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER ;     // lock for the file 
+pthread_mutex_t chunks_lock = PTHREAD_MUTEX_INITIALIZER ;   // lock for the chunks queue 
+pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER ;    // lock for the print order
+pthread_cond_t fill_chunks_cv = PTHREAD_COND_INITIALIZER ;  // to wake the consumer threads to dequeue 
+pthread_cond_t empty_chunks_cv = PTHREAD_COND_INITIALIZER ; // to wake the producer thread to enqueue
+pthread_cond_t print_cv = PTHREAD_COND_INITIALIZER ;        // to wake the consumer thread to print 
+//variables for producer/consumer 
 chunk *chunks[MAX_CHUNKS] ;
 int fill = 0 ;
 int use = 0 ;
 int count = 0 ;
 
-void print_err(char *err);
-void map_files(int num_files , char *filenames[] , int *new_n , char **file);
-void enqueue(chunk *c);
-chunk *dequeue(void);
-void *producer(void *arg);
-void *consumer(void *arg);
-void encode_chunk(chunk *c);
-void open_file_for_encoded_chunk (chunk *c);
-void print_encoded_chunk(chunk *c);
+void print_err(char *err); // takes the error as string and prints the error message 
+ /*takes the number of files and array of files names
+ and return the file size and pointer to it in memory*/
+void map_files(int num_files , char *filenames[] , int *new_n , char **file);  
+void enqueue(chunk *c);  // takes pointer to chunk as argument and fill the queue with it
+chunk *dequeue(void);    // extracts a chunk from the queue 
+void *producer(void *arg); // for the producer thread
+void *consumer(void *arg); // for the consumer thread 
+void encode_chunk(chunk *c); // encodes and process the chunk
+void open_file_for_encoded_chunk (chunk *c); // opens file to store the encoded chunk
+void print_encoded_chunk(chunk *c);  // prints the encoded chunk
 
 int main(int argc, char *argv[])
 {
-  if (argc < 2) {
+  if (argc < 2) { //check that the program is executed correctly 
     print_err("wzip: file1 [file2 ...]\n");
     exit(EXIT_FAILURE);
   }
   file.size = 0 ;
+  //map all input files into one file 
   map_files(argc , argv , &file.size , &file.file_in_memory) ;
-  int threads = get_nprocs();
+  int threads = get_nprocs(); // get the number of threads 
+   /*creating threads */
   pthread_t producer_t ;
   pthread_t consumer_t[threads];
   int rc = pthread_create(&producer_t, NULL,producer, NULL);
@@ -72,10 +76,12 @@ int main(int argc, char *argv[])
    int rc = pthread_create(&consumer_t[i], NULL, consumer , NULL);
     assert(rc == 0);
   }
+  /*waitting for the threads*/
   pthread_join(producer_t, NULL);
   for (int i = 0; i<threads; i++) {
     pthread_join(consumer_t[i], NULL);
   }
+  // free the memory of the file
   free(file.file_in_memory);
   return EXIT_SUCCESS;
 }
@@ -149,35 +155,38 @@ chunk *dequeue(void)
 }
 void *producer (void *arg)
 {
-  chunk *c = (chunk *)malloc(sizeof(chunk));
-  while (file.file_cursor < file.size) {
+  chunk *c = (chunk *)malloc(sizeof(chunk)); // allocate memory for the chunk
+  while (file.file_cursor < file.size) { // looping the whole file 
     pthread_mutex_lock(&file_lock);
-    c->id = file.chunck_id_setter ;
-    if (file.size <= MIN_CHUNCK_SIZE)
+    c->id = file.chunck_id_setter ; // set the id for the chunk
+    if (file.size <= MIN_CHUNCK_SIZE) // if the file is too small 
     {
-      c->start = 0 ;
-      c->size = file.size ;
-      file.file_cursor = file.size ;
+      c->start = 0 ; //make the chunk start the same as file start
+      c->size = file.size ; // set the chunk size the same as file
+      file.file_cursor = file.size ; //update the file cursor
     }
     else
     {
-      c->start = file.file_cursor;
-      file.file_cursor += MIN_CHUNCK_SIZE ;
-      while(file.file_in_memory[file.file_cursor] == file.file_in_memory[file.file_cursor + 1]) 
+      c->start = file.file_cursor; // make the chunk start from the last cursor position 
+      file.file_cursor += MIN_CHUNCK_SIZE ; // set the min size of chunk initially 
+      while(file.file_in_memory[file.file_cursor] == file.file_in_memory[file.file_cursor + 1]) // make sure every chunk ends with all instances of the char 
       {
-        file.file_cursor ++ ;
+        file.file_cursor ++ ; //update the file cursor
       }
-      c->size = file.file_cursor - c->start ;
+      c->size = file.file_cursor - c->start + 1; // update the chunk size 
     }
-    if (file.file_cursor == file.size)
+    file.chunck_id_setter ++;  //update the file cursor
+    if (file.file_cursor == file.size) // check if it is the last chunk
       c->last_chunk = 1 ;
+    else
+      c->last_chunk = 0 ;
     pthread_mutex_unlock(&file_lock);
     pthread_mutex_lock(&chunks_lock);
-    while (count == MAX_CHUNKS) {
-      pthread_cond_wait(&empty_chunks_cv, &chunks_lock);
+    while (count == MAX_CHUNKS) { // the queue is full 
+      pthread_cond_wait(&empty_chunks_cv, &chunks_lock); // make the thread sleep 
     }
     enqueue(c);
-    pthread_cond_signal(&fill_chunks_cv);
+    pthread_cond_signal(&fill_chunks_cv); // wake a consumer thread
     pthread_mutex_unlock(&chunks_lock);
   }
   return NULL;
@@ -186,8 +195,8 @@ void *consumer(void *arg)
 {
   while (1) {
     pthread_mutex_lock(&chunks_lock);
-    while (count == 0) {
-      pthread_cond_wait(&fill_chunks_cv, &chunks_lock); 
+    while (count == 0) { //the queue is empty 
+      pthread_cond_wait(&fill_chunks_cv, &chunks_lock);  // put the thread to sleep 
       if(consumed_all) //check if all chunks are consumed 
         break;
     }
@@ -198,7 +207,7 @@ void *consumer(void *arg)
     {
       consumed_all = 1 ;
     }
-    pthread_cond_signal(&empty_chunks_cv);
+    pthread_cond_signal(&empty_chunks_cv); //wake a producer thread 
     pthread_mutex_unlock(&chunks_lock);
     encode_chunk(c);
   }
@@ -225,16 +234,16 @@ void encode_chunk (chunk *c)
   }
   //Print chunck in its order 
   print_encoded_chunk(c);
-  // Close the file descriptor
-  close(c->encoded_fd);
+  // Close the file of encoded_chunk 
+  fclose(c->encoded_fp);
   // Free the memory
   /*free(c->encoded_chunk);*/
-  free(c->encoded_fp) ;
+  /*free(c->encoded_fp) ;*/
   free(c);
 }
 void open_file_for_encoded_chunk (chunk *c)
 { 
-  size_t s = (size_t)(sizeof(int)+sizeof(char)*(c->size));
+  size_t s = (size_t)(sizeof(int)+sizeof(char)*(c->size)); // assume the max size of the chunk 
   // Allocate chunk_size bytes of memory
   c->encoded_chunk = (char *)malloc(s);
   if (c->encoded_chunk == NULL) {
@@ -246,20 +255,18 @@ void open_file_for_encoded_chunk (chunk *c)
       free(c->encoded_chunk);
       exit(EXIT_FAILURE);
   }
-  c->encoded_fp = fp ;
-  int fd = fileno(fp); 
-  c->encoded_fd = fd ;
+  c->encoded_fp = fp ; // sets the file pointer
 }
 void print_encoded_chunk(chunk *c)
 {
   pthread_mutex_lock(&print_lock);
-  while(print_order != c->id)
+  while(print_order != c->id) // check for the chunk order 
   {
-    pthread_cond_broadcast(&print_cv);
-    pthread_cond_wait(&print_cv , &print_lock);
+    pthread_cond_broadcast(&print_cv); // wake all threads to check 
+    pthread_cond_wait(&print_cv , &print_lock); // go to sleep 
   }
   // Redirect the contents of the buffer to stdout
   write(STDOUT_FILENO, c->encoded_chunk, strlen(c->encoded_chunk));
-  print_order++;
+  print_order++; // update the order 
   pthread_mutex_unlock(&print_lock);
 }
