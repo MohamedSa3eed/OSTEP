@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include "pthread.h"
+#include <assert.h>
 
 #define MAX_FILES 100 // max number of files to compress
 #define MAX_CHUNKS 100 // max number of chunks to compress
@@ -35,12 +36,9 @@ int consumed_all = 0 ;
 
 pthread_mutex_t file_lock = PTHREAD_MUTEX_INITIALIZER ;
 pthread_mutex_t chunks_lock = PTHREAD_MUTEX_INITIALIZER ;
-pthread_mutex_t encoded_chunks_lock = PTHREAD_MUTEX_INITIALIZER ;
 pthread_mutex_t print_lock = PTHREAD_MUTEX_INITIALIZER ;
-pthread_cond_t file_cv = PTHREAD_COND_INITIALIZER ;
 pthread_cond_t fill_chunks_cv = PTHREAD_COND_INITIALIZER ;
 pthread_cond_t empty_chunks_cv = PTHREAD_COND_INITIALIZER ;
-pthread_cond_t encoded_chunks_cv = PTHREAD_COND_INITIALIZER ;
 pthread_cond_t print_cv = PTHREAD_COND_INITIALIZER ;
 chunk *chunks[MAX_CHUNKS] ;
 int fill = 0 ;
@@ -66,7 +64,18 @@ int main(int argc, char *argv[])
   file.size = 0 ;
   map_files(argc , argv , &file.size , &file.file_in_memory) ;
   int threads = get_nprocs();
-
+  pthread_t producer_t ;
+  pthread_t consumer_t[threads];
+  int rc = pthread_create(&producer_t, NULL,producer, NULL);
+  assert(rc == 0);
+  for (int i = 0; i<threads; i++) {
+   int rc = pthread_create(&consumer_t[i], NULL, consumer , NULL);
+    assert(rc == 0);
+  }
+  pthread_join(producer_t, NULL);
+  for (int i = 0; i<threads; i++) {
+    pthread_join(consumer_t[i], NULL);
+  }
   free(file.file_in_memory);
   return EXIT_SUCCESS;
 }
@@ -148,6 +157,7 @@ void *producer (void *arg)
     {
       c->start = 0 ;
       c->size = file.size ;
+      file.file_cursor = file.size ;
     }
     else
     {
@@ -159,6 +169,8 @@ void *producer (void *arg)
       }
       c->size = file.file_cursor - c->start ;
     }
+    if (file.file_cursor == file.size)
+      c->last_chunk = 1 ;
     pthread_mutex_unlock(&file_lock);
     pthread_mutex_lock(&chunks_lock);
     while (count == MAX_CHUNKS) {
@@ -216,7 +228,7 @@ void encode_chunk (chunk *c)
   // Close the file descriptor
   close(c->encoded_fd);
   // Free the memory
-  free(c->encoded_chunk);
+  /*free(c->encoded_chunk);*/
   free(c->encoded_fp) ;
   free(c);
 }
@@ -224,7 +236,7 @@ void open_file_for_encoded_chunk (chunk *c)
 { 
   size_t s = (size_t)(sizeof(int)+sizeof(char)*(c->size));
   // Allocate chunk_size bytes of memory
-  c->encoded_chunk = malloc(s);
+  c->encoded_chunk = (char *)malloc(s);
   if (c->encoded_chunk == NULL) {
       exit(EXIT_FAILURE);
   }
