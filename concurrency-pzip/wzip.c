@@ -10,9 +10,9 @@
 #include "pthread.h"
 #include <assert.h>
 
-#define MAX_FILES 100 // max number of files to compress
-#define MAX_CHUNKS 600 // max number of chunks to compress
-#define MIN_CHUNCK_SIZE 1024 // min size for a chunck only if the file has a bigger size 
+#define MAX_FILES 100         // max number of files to compress
+#define MAX_CHUNKS 600        // max number of chunks to compress
+#define MIN_CHUNCK_SIZE 1024  // min size for a chunck only if the file has a bigger size 
 
 typedef struct {
   unsigned int id;                // store the chunk id 
@@ -20,14 +20,14 @@ typedef struct {
   int start;             // store the file index of the first char in chunk 
   int last_chunk ;       // 1 indicates that chunck is the last one 
   char *encoded_chunk ;  // the encoded chunk in memory 
-  char * cursor ;       // used to write data to the encoded_chunk buffer
+  char * cursor ;        // used to write data to the encoded_chunk buffer
 } chunk;
 
 struct {
-  int size ;             // holds the file size 
-  int file_cursor;       // holds the current index of file 
+  int size ;                     // holds the file size 
+  int file_cursor;               // holds the current index of file 
   unsigned int chunk_id_setter;  // sets the chunks id 
-  char *file_in_memory ; // the file in memory 
+  char *file_in_memory ;         // the file in memory 
 }file;
 
 unsigned int print_order = 0 ;    // holds the id of next chunk to print 
@@ -68,14 +68,12 @@ int main(int argc, char *argv[])
   file.chunk_id_setter = 0 ;
   //map all input files into one file 
   map_files(argc , argv , &file.size , &file.file_in_memory) ;
-  /*printf("file size : %d",file.size);*/
   int threads = get_nprocs(); // get the number of threads 
    /*creating threads */
   pthread_t producer_t ;
   pthread_t consumer_t[threads];
   int rc = pthread_create(&producer_t, NULL,producer, NULL);
   assert(rc == 0);
-  /*printf("producer created \n");*/
   int arr[threads];
   for (int i = 0; i<threads; i++) {
     arr[i] = i ;
@@ -84,12 +82,10 @@ int main(int argc, char *argv[])
   }
   /*waitting for the threads*/
   pthread_join(producer_t, NULL);
-  /*printf("producer joined\n");*/
   for (int i = 0; i<threads; i++) {
     pthread_join(consumer_t[i], NULL);
   }
   // free the memory of the file
-  /*printf("free the file memory \n");*/
   free(file.file_in_memory);
   file.file_in_memory = NULL ;
   return EXIT_SUCCESS;
@@ -154,21 +150,18 @@ void enqueue(chunk *c)
   chunks[fill] = c ;
   fill = (fill + 1) % MAX_CHUNKS ;
   count++ ;
-  /*printf("                                                                             enqueue:   fill = %d , use = %d  , count = %d chunk = %d \n",fill,use,count,c->id);*/
 }
 chunk *dequeue(void)
 {
   chunk *c = chunks[use];
   use = (use + 1) % MAX_CHUNKS ;
   count-- ;
-  /*printf("                                                                             dequeue:   fill = %d , use = %d  , count = %d chunk = %d \n",fill ,use,count,c->id);*/
   return c;
 }
 void *producer (void *arg)
 {
   while (file.file_cursor < file.size) { // looping the whole file 
     chunk *c = (chunk *)malloc(sizeof(chunk)); // allocate memory for the chunk
-    /*pthread_mutex_lock(&file_lock);*/
     c->id = file.chunk_id_setter ; // set the id for the chunk
     if (file.size <= MIN_CHUNCK_SIZE) // if the file is too small 
     {
@@ -180,7 +173,7 @@ void *producer (void *arg)
     {
       c->start = file.file_cursor ; // make the chunk start from the last cursor position 
       if((file.file_cursor + MIN_CHUNCK_SIZE) <= file.size ) // check if there is enough size for a chunk
-        file.file_cursor += (MIN_CHUNCK_SIZE -1) ; // set the min size of chunk initially 
+        file.file_cursor += (MIN_CHUNCK_SIZE  ) ; // set the min size of chunk initially 
       else 
         file.file_cursor = file.size ; // get the rest of the file 
       int local_flag = 0 ;
@@ -194,69 +187,45 @@ void *producer (void *arg)
         local_flag = 0;
       }
       c->size = file.file_cursor - c->start ; // update the chunk size 
-      /*file.file_cursor ++;*/
     }
-    file.chunk_id_setter ++;  //update the file cursor
+    file.chunk_id_setter ++;  //update the id setter 
     if (file.file_cursor == file.size) // check if it is the last chunk
       c->last_chunk = 1 ;
     else
       c->last_chunk = 0 ;
-    /*pthread_mutex_unlock(&file_lock);*/
-    /*printf("producer tries to get lock\n");*/
     pthread_mutex_lock(&chunks_lock);
-    /*printf("producer gets the lock\n");*/
     while (count == MAX_CHUNKS) { // the queue is full 
-      /*printf(" count = %d \n",count);*/
-      /*printf("producer sleep (queue is full)\n");*/
-      /*chunks[10]->id = 2 ;*/
-      /*for (int i =0 ; i< MAX_CHUNKS; i++) {*/
-        /*printf("c[%d] = %d\n",i ,c->id);*/
-      /*}*/
       pthread_cond_wait(&empty_chunks_cv, &chunks_lock); // make the thread sleep 
     }
-    /*printf("                                        put chunk %d in the queue \n",c->id);*/
     enqueue(c);
-    /*printf("%c",file.file_in_memory[file.file_cursor]);*/
     pthread_cond_signal(&fill_chunks_cv); // wake a consumer thread
     pthread_mutex_unlock(&chunks_lock);
-    /*printf("producer released the lock\n");*/
   }
   return NULL;
 }
 void *consumer(int *id)
 {
-    /*printf("consumer %d \n",*id);*/
   while (1) {
-    /*printf("consumer %d tries to get lock\n",*id);*/
     pthread_mutex_lock(&chunks_lock);
-    /*printf("consumer %d gets lock\n",*id);*/
     while (count == 0) { //the queue is empty 
       if(consumed_all) //check if all chunks are consumed 
         break;
-      /*printf("consumer %d put to sleep for no chunks \n",*id);*/
       pthread_cond_wait(&fill_chunks_cv, &chunks_lock);  // put the thread to sleep 
     }
     if(consumed_all)//check if all chunks are consumed 
     {
        pthread_mutex_unlock(&chunks_lock);
-    /*printf("consumer %d rleased lock\n",*id);*/
        break;
     }
     chunk *c = dequeue(); 
-    /*printf("                                        consumer %d get chunk %d \n",*id ,c->id);*/
     if(c->last_chunk) // check if the chunk is the last one 
     {
       consumed_all = 1 ;
     }
     pthread_cond_signal(&empty_chunks_cv); //wake a producer thread 
     pthread_mutex_unlock(&chunks_lock);
-    /*printf("consumer %d released lock\n",*id);*/
-    /*printf("                                        consumer %d encode the %d chunk \n",*id ,c->id);*/
-    /*printf("                                        chunk %d size %d\n",c->id,c->size);*/
     encode_chunk(c);
-    /*printf("                                        consumer %d finished encode the chunk \n",*id );*/
   }
-  /*printf("consumer %d terminated \n",*id);*/
   pthread_cond_broadcast(&fill_chunks_cv); //wake all consumer threads to terminate
   return NULL;
 }
@@ -271,7 +240,6 @@ void encode_chunk (chunk *c)
       counter++;
       if (cursor == (c->size -1) ) {
         // Write data to the memory buffer 
-        /*printf("chunc %d :%d%c",c->id,counter,file.file_in_memory[offset]);*/
         memcpy(c->cursor, &counter, sizeof(int)); // Write binary data to the buffer
         c->cursor += sizeof(int);
         memcpy(c->cursor, &file.file_in_memory[offset], sizeof(char)); // Write binary data to the buffer
@@ -280,15 +248,17 @@ void encode_chunk (chunk *c)
       }
     }
     else {
+      if (counter == 1 && *(file.file_in_memory+offset) == *(file.file_in_memory+offset - 1)) {
+        cursor ++;
+        continue; 
+      }
       // Write data to the memory buffer 
-      /*printf("chunc %d :%d%c",c->id,counter,file.file_in_memory[offset]);*/
       memcpy(c->cursor, &counter, sizeof(int)); // Write binary data to the buffer
       c->cursor += sizeof(int);
       memcpy(c->cursor, &file.file_in_memory[offset], sizeof(char)); // Write binary data to the buffer
       c->cursor += sizeof(char);
       counter = 1 ;
     }
-  /*printf("                                                                                                                                         seg fault cant be here\n");*/
     cursor++ ;
   }
   //Print chunk in its order 
@@ -315,12 +285,9 @@ void print_encoded_chunk(chunk *c)
   pthread_mutex_lock(&print_lock);
   while(print_order != c->id) // check for the chunk order 
   {
-  /*printf("encoded chunk %d printed\n",c->id);*/
     pthread_cond_wait(&print_cv , &print_lock); // go to sleep 
   }
   // Redirect the contents of the buffer to stdout
-  /*printf("encoded chunk %d printed\n",c->id);*/
-  /*printf("%c",*(c->cursor));*/
   write(STDOUT_FILENO, c->encoded_chunk, c->cursor - c->encoded_chunk);
   print_order++; // update the order 
     pthread_cond_broadcast(&print_cv); // wake all threads to check 
