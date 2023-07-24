@@ -43,7 +43,7 @@ prompt>
 ### Concurrency
 
 - [ ]  [Web Server](concurrency-webserver)
-- [ ]  [Parallel Zip](concurrency-pzip)
+- [x]  [Parallel Zip](concurrency-pzip)
 - [ ]  [MapReduce](concurrency-mapreduce)
 
 ### File Systems
