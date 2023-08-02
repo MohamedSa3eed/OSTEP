@@ -73,7 +73,7 @@ and install the tools.
 
 ### Virtual Memory
 
-- [ ] [Virtual Memory (Null Pointer and Read-Only Regions)](vm-xv6-intro)
+- [x] [Virtual Memory (Null Pointer and Read-Only Regions)](vm-xv6-intro)
 
 ### Concurrency
 
