@@ -343,3 +343,34 @@ int copyout(pde_t* pgdir, uint va, void* p, uint len) {
   }
   return 0;
 }
+
+int mprotect(void *addr, int len)
+{
+  pte_t *pte ;
+  char *address =(char *)PGROUNDDOWN((uint)addr);
+  char *end =(char *)PGROUNDDOWN((uint)addr + len - 1);
+  for ( ; address < end ; address += PGSIZE) {
+    if ((pte = (pte_t *) walkpgdir(proc->pgdir, (void *)address , 0)) == 0 || (*pte & PTE_P) == 0 )
+    {
+      return -1;
+    }
+    *pte &= ~PTE_W;
+  }
+  lcr3(V2P(proc->pgdir));
+  return 0;
+}
+int munprotect(void *addr, int len)
+{
+  pte_t *pte ;
+  char *address =(char *)PGROUNDDOWN((uint)addr);
+  char *end =(char *)PGROUNDDOWN((uint)addr + len - 1);
+  for ( ; address < end ; address += PGSIZE) {
+    if ((pte = (pte_t *) walkpgdir(proc->pgdir, (void *)address , 0)) == 0 || (*pte & PTE_P) == 0 ) 
+    {
+      return -1;
+    }
+    *pte |= PTE_W;
+  }
+  lcr3(V2P(proc->pgdir));
+  return 0;
+}
