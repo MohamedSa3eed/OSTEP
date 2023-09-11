@@ -132,7 +132,7 @@ int fork(void) {
   np->parent = proc;
   *np->tf = *proc->tf;
 
-  // Clear %eax so that fork returns 0 in the child.
+  // clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
   for(i = 0; i < NOFILE; i++)
@@ -427,5 +427,104 @@ void procdump(void) {
         cprintf(" %p", pc[i]);
     }
     cprintf("\n");
+  }
+}
+
+int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack){
+  int i, pid;
+  struct proc *np;
+
+  // Check if the stack address is page-alligned
+  if((uint) stack % PGSIZE != 0){
+    return -1;
+  }
+
+  // Allocate process
+  if((np = allocproc()) == 0){
+    return -1;
+  }
+
+  // Share the parent's address space with the child thread
+  np->pgdir = proc->pgdir;
+  np->sz = proc->sz;
+  np->parent = proc;
+  *np->tf = *proc->tf;
+
+  // Set up the child thread's stack
+  uint sp = (uint)stack + PGSIZE;
+  *((uint *)(sp - 4)) = (uint)arg2;
+  *((uint *)(sp - 8)) = (uint)arg1;
+  *((uint *)(sp - 12)) = 0xffffffff; // Fake return PC
+
+ // Set up the trap frame for the child thread
+  np->tf->esp = sp - 12; // Adjust stack pointer
+  np->tf->eip = (uint)fcn;
+  np->tf->eax = 0; // Return value for child
+  np->tf->edx = (uint)arg1; // Argument 1
+  np->tf->ecx = (uint)arg2; // Argument 2
+  np->tf->esp -= 12; // Adjust stack pointer for trap frame
+
+  // Copy file descriptors
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = filedup(proc->ofile[i]);
+
+  // Copy current working directory
+  np->cwd = idup(proc->cwd);
+
+  safestrcpy(np->name, proc->name, sizeof(proc->name));
+
+  pid = np->pid;
+
+  acquire(&ptable.lock);
+
+  np->state = RUNNABLE;
+
+  release(&ptable.lock);
+
+  return pid;
+}
+
+int join(void **stack){
+  struct proc *p;
+  int havekids, pid;
+
+  for(;;){
+    // Scan through table looking for zombie children
+    acquire(&ptable.lock);
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != proc || p->pgdir != proc->pgdir)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pgdir = 0;
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+
+        // Copy the stack pointer 
+        *stack = (void *)p->tf->esp; // TODO: Check if this is correct
+
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children
+    if(!havekids || proc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit
+    sleep(proc, &ptable.lock);
   }
 }
