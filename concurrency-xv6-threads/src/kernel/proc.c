@@ -444,6 +444,8 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack){
     return -1;
   }
 
+  np->stack=stack;
+
   // Share the parent's address space with the child thread
   np->pgdir = proc->pgdir;
   np->sz = proc->sz;
@@ -462,7 +464,6 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack){
   np->tf->eax = 0; // Return value for child
   np->tf->edx = (uint)arg1; // Argument 1
   np->tf->ecx = (uint)arg2; // Argument 2
-  np->tf->esp -= 12; // Adjust stack pointer for trap frame
 
   // Copy file descriptors
   for(i = 0; i < NOFILE; i++)
@@ -489,9 +490,9 @@ int join(void **stack){
   struct proc *p;
   int havekids, pid;
 
+  acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for zombie children
-    acquire(&ptable.lock);
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != proc || p->pgdir != proc->pgdir)
@@ -502,7 +503,6 @@ int join(void **stack){
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
         p->pgdir = 0;
         p->state = UNUSED;
         p->pid = 0;
@@ -511,7 +511,7 @@ int join(void **stack){
         p->killed = 0;
 
         // Copy the stack pointer 
-        *stack = (void *)p->tf->esp; // TODO: Check if this is correct
+        *stack = (void *)p->stack;
 
         release(&ptable.lock);
         return pid;

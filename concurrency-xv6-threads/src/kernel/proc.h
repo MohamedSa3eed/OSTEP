@@ -81,6 +81,7 @@ struct proc {
   struct file* ofile[NOFILE]; // Open files
   struct inode* cwd;          // Current directory
   char name[16];              // Process name (debugging)
+  void *stack;                // Bottom of user stack for this process
 };
 
 struct ptable {
