@@ -436,7 +436,7 @@ int clone(void(*fcn)(void *, void *), void *arg1, void *arg2, void *stack){
 
   // Check if the stack address is page-alligned
   if((uint) stack % PGSIZE != 0){
-    return -1;
+    stack += PGSIZE - (uint)stack%PGSIZE;
   }
 
   // Allocate process
