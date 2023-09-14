@@ -77,5 +77,5 @@ and install the tools.
 
 ### Concurrency
 
-- [ ] [Kernel Threads (Basic Implementation)](concurrency-xv6-threads)
+- [x] [Kernel Threads (Basic Implementation)](concurrency-xv6-threads)
 
