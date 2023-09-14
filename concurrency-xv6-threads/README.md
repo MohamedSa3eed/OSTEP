@@ -6,7 +6,7 @@ This repository contains my solution to the Concurrency-xv6-threads assignment f
 
 My solution provides an implementation of the required functionalities in the xv6 operating system. Here's an overview of the key components:
 
-![image](https://github.com/MohamedSa3eed/OSTEP/edit/master/concurrency-xv6-threads/graph/Diagram.png?raw=true)
+![image](https://github.com/MohamedSa3eed/OSTEP/blob/master/concurrency-xv6-threads/graph/Diagram.png)
 
 ### System Calls
 
